@@ -22,6 +22,7 @@ import {
   SphereGeometry,
   PointLight,
   BoxGeometry,
+  PlaneGeometry,
 } from 'three';
 
 @Component({
@@ -64,6 +65,11 @@ export class HeightmapDemoComponent
     const loader = new TextureLoader();
     loader.load('assets/heightmap.png', (texture: Texture) =>
       this.onTextureLoaded(texture)
+    );
+
+    // Lade auch die normalmap als Bodentextur
+    loader.load('assets/normalmap.png', (normalMap: Texture) =>
+      this.createFloor(normalMap)
     );
 
     window.addEventListener('resize', this.onWindowResize.bind(this));
@@ -121,6 +127,25 @@ export class HeightmapDemoComponent
     this.addCube(-5, 4, -5, 0xff0000); // Rot
     this.addSphere(0, 3, -5, 0x0000ff); // Blau
     this.generateLight();
+
+    // Füge eine Geometrie mit Phong Material hinzu
+    this.addPhongSphere(5, 3, 0, 0x00ff00); // Grünes Phong-Sphere
+  }
+
+  private createFloor(normalMap: Texture) {
+    // PlaneGeometry für den Boden
+    const geometry = new PlaneGeometry(500, 500, 50, 50);
+    const material = new MeshStandardMaterial({
+      color: 0x888888,
+      normalMap: normalMap,
+      roughness: 0.7,
+      metalness: 0.1,
+    });
+
+    const floor = new Mesh(geometry, material);
+    floor.rotation.x = -Math.PI / 2; // Drehe den Boden, um ihn horizontal zu platzieren
+    floor.receiveShadow = true;
+    this.scene.add(floor);
   }
 
   private addCube(x: number, y: number, z: number, color: number) {
@@ -146,6 +171,21 @@ export class HeightmapDemoComponent
     mesh.receiveShadow = true;
     mesh.position.set(x, y, z);
     this.scene.add(mesh);
+  }
+
+  private addPhongSphere(x: number, y: number, z: number, color: number) {
+    // Geometrie und Phong-Material hinzufügen
+    const geometry = new SphereGeometry(3, 32, 32);
+    const material = new MeshStandardMaterial({
+      color: color,
+    });
+
+    const sphere = new Mesh(geometry, material);
+    sphere.position.set(x, y, z);
+    sphere.castShadow = true;
+    sphere.receiveShadow = true;
+
+    this.scene.add(sphere);
   }
 
   private generateTerrain(imageData: ImageData) {

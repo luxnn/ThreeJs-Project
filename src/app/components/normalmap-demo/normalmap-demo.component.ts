@@ -5,6 +5,7 @@ import {
   OnDestroy,
   ViewChild
 } from '@angular/core';
+import * as THREE from 'three'; // Füge den Import von THREE hinzu
 import {
   WebGLRenderer,
   Scene,
@@ -27,8 +28,8 @@ import {
   templateUrl: './normalmap-demo.component.html',
   styleUrls: ['./normalmap-demo.component.scss'],
 })
-export class NormalmapDemoComponent implements  AfterViewInit, OnDestroy {
-@ViewChild('heightmap') canvasRef!: ElementRef<HTMLCanvasElement>;
+export class NormalmapDemoComponent implements AfterViewInit, OnDestroy {
+  @ViewChild('heightmap') canvasRef!: ElementRef<HTMLCanvasElement>;
   scene!: Scene;
   camera!: PerspectiveCamera;
   renderer!: WebGLRenderer;
@@ -59,7 +60,7 @@ export class NormalmapDemoComponent implements  AfterViewInit, OnDestroy {
     this.animate();
   }
 
-private addMouseListeners() {
+  private addMouseListeners() {
     const canvas = this.canvasRef.nativeElement;
 
     canvas.addEventListener('mousedown', (event) => {
@@ -89,39 +90,37 @@ private addMouseListeners() {
     });
   }
 
-private onWindowResize() {
+  private onWindowResize() {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(window.innerWidth, window.innerHeight);
   }
 
-private onTextureLoaded(texture: Texture) {
-    const canvas = document.createElement('canvas');
-    canvas.width = texture.image.width;
-    canvas.height = texture.image.height;
+  private onTextureLoaded(texture: Texture) {
+    const loader = new TextureLoader();
+    loader.load('assets/normalmap.png', (normalMap: Texture) => {
+      normalMap.wrapS = normalMap.wrapT = THREE.RepeatWrapping;
+      normalMap.minFilter = normalMap.magFilter = THREE.LinearFilter;
 
-    const context = canvas.getContext('2d') as CanvasRenderingContext2D;
-    context.drawImage(texture.image, 0, 0);
+      const canvas = document.createElement('canvas');
+      canvas.width = texture.image.width;
+      canvas.height = texture.image.height;
 
-    const data = context.getImageData(0, 0, canvas.width, canvas.height);
-    this.generateTerrain(data);
-    this.addCube(-5, 4, -5);
-    this.addCube(0, 3, -5);
-    this.generateLight();
+      const context = canvas.getContext('2d') as CanvasRenderingContext2D;
+      context.drawImage(texture.image, 0, 0);
+
+      const data = context.getImageData(0, 0, canvas.width, canvas.height);
+      this.generateTerrain(data, normalMap);
+      this.addCube(-5, 4, -5);
+      this.addCube(0, 3, -5);
+      this.generateLight();
+    });
   }
 
-private addCube(x: number, y: number, z: number) {
-    const material = new MeshStandardMaterial();
-    const sphere = new SphereGeometry(2, 16, 6);
-    const mesh = new Mesh(sphere, material);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.position.set(x, y, z);
-    this.scene.add(mesh);
-  }
-
-private generateTerrain(imageData: ImageData) {
+  private generateTerrain(imageData: ImageData, normalMap: Texture) {
     const vertices = [];
+    const colors = [];
+
     const colorInfos = [
       [0.53, 0.71, 0.42],
       [0.64, 0.77, 0.53],
@@ -134,7 +133,6 @@ private generateTerrain(imageData: ImageData) {
       [0.68, 0.53, 0.34],
       [0.50, 0.38, 0.23],
     ];
-    const colors = [];
 
     for (let z = 0; z < imageData.height; z++) {
       for (let x = 0; x < imageData.width; x++) {
@@ -162,7 +160,11 @@ private generateTerrain(imageData: ImageData) {
     geometry.setAttribute('position', new BufferAttribute(new Float32Array(vertices), 3));
     geometry.setAttribute('color', new BufferAttribute(new Float32Array(colors), 4));
 
-    const material = new MeshStandardMaterial({ vertexColors: true, flatShading: true });
+    const material = new MeshStandardMaterial({
+      vertexColors: true,
+      flatShading: true,
+      normalMap: normalMap,
+    });
 
     this.map = new Mesh(geometry, material);
     this.map.castShadow = true;
@@ -170,12 +172,22 @@ private generateTerrain(imageData: ImageData) {
     this.scene.add(this.map);
   }
 
-private generateLight() {
+  private addCube(x: number, y: number, z: number) {
+    const material = new MeshStandardMaterial();
+    const sphere = new SphereGeometry(2, 16, 6);
+    const mesh = new Mesh(sphere, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.position.set(x, y, z);
+    this.scene.add(mesh);
+  }
+
+  private generateLight() {
     this.createDirectionalLight();
     this.addAmbientLight();
   }
 
-private createDirectionalLight() {
+  private createDirectionalLight() {
     const directionalLight = new PointLight(0xffffff, 0.5);
     directionalLight.distance = 25;
     directionalLight.power = 1000;
@@ -188,7 +200,7 @@ private createDirectionalLight() {
     this.scene.add(directionalLight);
   }
 
-private addAmbientLight() {
+  private addAmbientLight() {
     const ambientLight = new AmbientLight(0x403040, 1);
     this.scene.add(ambientLight);
   }
@@ -199,7 +211,7 @@ private addAmbientLight() {
     this.renderer.dispose();
   }
 
-private animate() {
+  private animate() {
     this.animationFrameId = requestAnimationFrame(() => this.animate());
 
     if (this.map) {
