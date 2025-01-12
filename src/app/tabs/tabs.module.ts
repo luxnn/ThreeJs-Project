@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { TabsPageRoutingModule } from './tabs-routing.module';
 
 import { TabsPage } from './tabs.page';
+import {ThreeJsDemoComponent} from "../components/three-js-demo/three-js-demo.component";
 
 @NgModule({
   imports: [
@@ -14,6 +15,9 @@ import { TabsPage } from './tabs.page';
     FormsModule,
     TabsPageRoutingModule
   ],
-  declarations: [TabsPage]
+  exports: [
+    ThreeJsDemoComponent
+  ],
+  declarations: [TabsPage, ThreeJsDemoComponent]
 })
 export class TabsPageModule {}
