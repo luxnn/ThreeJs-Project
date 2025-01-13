@@ -308,14 +308,33 @@ export class HeightmapDemoComponent
     directionalLight.position.set(0, 8, 0);
     directionalLight.castShadow = true;
     directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow
-      .mapSize.height = 2048;
+    directionalLight.shadow.mapSize.height = 2048;
     this.scene.add(directionalLight);
+
+    // Zweites Licht, das um die Szene kreist
     const directionalLight2 = new DirectionalLight(0xffffff, 1);
-    directionalLight.position.set(0, 50, 50);
-    directionalLight.castShadow = true;
+    directionalLight2.position.set(0, 50, 50);  // Anfangsposition
+    directionalLight2.castShadow = true;
     this.scene.add(directionalLight2);
 
+    // Rotation animieren
+    let angle = 0;
+    const animateLight = () => {
+      angle += 0.01;  // Geschwindigkeit der Bewegung
+
+      // Neue Position des Lichts auf einer Kreisbahn
+      directionalLight2.position.x = 50 * Math.sin(angle); // Kreisbewegung entlang der X-Achse
+      directionalLight2.position.z = 50 * Math.cos(angle); // Kreisbewegung entlang der Z-Achse
+      directionalLight2.position.y = 50 + Math.sin(angle * 0.5) * 10;  // Kleine Variation in der Höhe
+
+      // Das Licht immer auf das Zentrum (z.B. das Terrain) richten
+      directionalLight2.target.position.set(0, 0, 0);  // Ziel des Lichts
+      directionalLight2.target.updateMatrixWorld();  // Zielmatrix aktualisieren
+
+      this.animationFrameId = requestAnimationFrame(animateLight);
+    };
+
+    animateLight(); // Startet die Animation des Lichts
   }
 
 
