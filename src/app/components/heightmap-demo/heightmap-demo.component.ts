@@ -6,6 +6,7 @@ import {
   OnInit,
   ViewChild,
 } from '@angular/core';
+import * as THREE from 'three';
 import {
   WebGLRenderer,
   Scene,
@@ -24,6 +25,7 @@ import {
   BoxGeometry,
   PlaneGeometry,
 } from 'three';
+import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader';
 
 @Component({
   selector: 'app-heightmap-demo',
@@ -31,8 +33,7 @@ import {
   styleUrls: ['./heightmap-demo.component.scss'],
 })
 export class HeightmapDemoComponent
-  implements OnInit, AfterViewInit, OnDestroy
-{
+  implements OnInit, AfterViewInit, OnDestroy {
   @ViewChild('heightmap') canvasRef!: ElementRef<HTMLCanvasElement>;
   scene!: Scene;
   camera!: PerspectiveCamera;
@@ -43,9 +44,11 @@ export class HeightmapDemoComponent
   isDragging = false;
   previousMousePosition = new Vector2();
 
-  constructor() {}
+  constructor() {
+  }
 
-  ngOnInit() {}
+  ngOnInit() {
+  }
 
   ngAfterViewInit(): void {
     this.scene = new Scene();
@@ -58,7 +61,7 @@ export class HeightmapDemoComponent
     this.camera.position.set(0, 25, 25);
     this.camera.lookAt(0, 0, 0);
 
-    this.renderer = new WebGLRenderer({ canvas: this.canvasRef.nativeElement });
+    this.renderer = new WebGLRenderer({canvas: this.canvasRef.nativeElement});
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
 
@@ -67,15 +70,18 @@ export class HeightmapDemoComponent
       this.onTextureLoaded(texture)
     );
 
-    // Lade auch die normalmap als Bodentextur
+    // Lade auch die Normalmap und erstelle die Wand
     loader.load('assets/normalmap.png', (normalMap: Texture) =>
-      this.createFloor(normalMap)
+      this.createWall(normalMap)
     );
 
     window.addEventListener('resize', this.onWindowResize.bind(this));
     this.addMouseListeners();
 
     this.animate();
+
+    // Baum hinzufügen
+    this.loadTree(); // Hier den Baum laden
   }
 
   private addMouseListeners() {
@@ -132,9 +138,49 @@ export class HeightmapDemoComponent
     this.addPhongSphere(5, 3, 0, 0x00ff00); // Grünes Phong-Sphere
   }
 
-  private createFloor(normalMap: Texture) {
-    // PlaneGeometry für den Boden
-    const geometry = new PlaneGeometry(500, 500, 50, 50);
+  private loadTree() {
+    const loader = new GLTFLoader();
+    loader.load('assets/baum.glb', (gltf) => {
+      const tree = gltf.scene;
+
+      // Baum skalieren (optional)
+      tree.scale.set(1, 1, 1); // Skalierung des Baums
+
+      // Baum positionieren
+      tree.position.set(0, -5, -10); // Position des Baums
+
+      // Baum umdrehen: Drehung um 180 Grad entlang der X-Achse
+      tree.rotation.x = Math.PI; // Drehung um 180 Grad (PI) auf der X-Achse, um den Baum umzudrehen
+      this.animateTree(tree);
+      tree.castShadow = true;
+      tree.receiveShadow = true;
+
+      this.scene.add(tree);
+    }, undefined, (error) => {
+      console.error('Error loading the tree model:', error);
+    });
+  }
+
+  private animateTree(tree: THREE.Group) {
+    let angle = 0;
+
+    // Animationsfunktion, die im Renderloop immer wieder aufgerufen wird
+    const animate = () => {
+      angle += 0.01; // Geschwindigkeit der Animation anpassen
+
+      tree.rotation.y = Math.sin(angle) * 0.5; // Der Baum bewegt sich hin und her
+
+      tree.position.y = 1 + Math.sin(angle * 2) * 0.8; // Heben und Senken des Baums
+
+      this.animationFrameId = requestAnimationFrame(animate);
+    };
+
+    animate(); // Starte die Animation
+  }
+
+  private createWall(normalMap: Texture) {
+    // PlaneGeometry für die Wand
+    const geometry = new PlaneGeometry(25, 25, 25, 25);
     const material = new MeshStandardMaterial({
       color: 0x888888,
       normalMap: normalMap,
@@ -142,14 +188,17 @@ export class HeightmapDemoComponent
       metalness: 0.1,
     });
 
-    const floor = new Mesh(geometry, material);
-    floor.rotation.x = -Math.PI / 2; // Drehe den Boden, um ihn horizontal zu platzieren
-    floor.receiveShadow = true;
-    this.scene.add(floor);
+    const wall = new Mesh(geometry, material);
+    wall.rotation.y = Math.PI; // Drehung um 180° um die Y-Achse
+    wall.position.set(-2, 15, 15); // Wandposition auf der anderen Seite (negative X-Achse)
+    wall.receiveShadow = true;
+
+    this.scene.add(wall);
   }
 
+
   private addCube(x: number, y: number, z: number, color: number) {
-    const material = new MeshStandardMaterial({ color: color });
+    const material = new MeshStandardMaterial({color: color});
     const box = new BoxGeometry(3, 3, 3);
     const mesh = new Mesh(box, material);
     mesh.castShadow = true;
@@ -164,7 +213,7 @@ export class HeightmapDemoComponent
   }
 
   private addSphere(x: number, y: number, z: number, color: number) {
-    const material = new MeshStandardMaterial({ color: color });
+    const material = new MeshStandardMaterial({color: color});
     const sphere = new SphereGeometry(2, 32, 32);
     const mesh = new Mesh(sphere, material);
     mesh.castShadow = true;
@@ -259,62 +308,41 @@ export class HeightmapDemoComponent
     directionalLight.position.set(0, 8, 0);
     directionalLight.castShadow = true;
     directionalLight.shadow.mapSize.width = 2048;
-    directionalLight.shadow.mapSize.height = 2048;
-    directionalLight.shadow.camera.near = 1;
-    directionalLight.shadow.camera.far = 200;
+    directionalLight.shadow
+      .mapSize.height = 2048;
     this.scene.add(directionalLight);
+    const directionalLight2 = new DirectionalLight(0xffffff, 1);
+    directionalLight.position.set(0, 50, 50);
+    directionalLight.castShadow = true;
+    this.scene.add(directionalLight2);
+
   }
 
+
   private addAmbientLight() {
-    const ambientLight = new AmbientLight(0x403040, 1);
+    const ambientLight = new AmbientLight(0xffffff, 0.2);
     this.scene.add(ambientLight);
   }
 
-  ngOnDestroy() {
-    cancelAnimationFrame(this.animationFrameId);
-    window.removeEventListener('resize', this.onWindowResize.bind(this));
-    this.renderer.dispose();
-  }
-
   private animate() {
-    this.animationFrameId = requestAnimationFrame(() => this.animate());
+    this.animationFrameId = requestAnimationFrame(this.animate.bind(this));
+    // Würfelanimation
+    const movingCube = this.scene.getObjectByName('MovingCube');
+    if (movingCube) {
+      const direction = movingCube.userData['direction'];
+      movingCube.position.x += direction * 0.1;
 
-    if (this.map) {
-      this.map.rotation.y += 0.01; // Terrain dreht sich
-    }
-
-    // Bewegung des Würfels
-    const cube = this.scene.children.find((child) => child.name === 'MovingCube') as Mesh;
-    if (cube) {
-      const speed = 0.05;
-      const maxDistance = 10;
-
-      cube.position.x += speed * cube.userData['direction'];
-      if (cube.position.x > maxDistance || cube.position.x < -maxDistance) {
-        cube.userData['direction'] *= -1; // Richtung umkehren
+      if (movingCube.position.x > 10 || movingCube.position.x < -10) {
+        movingCube.userData['direction'] *= -1; // Richtung umkehren
       }
-    }
-
-    // Bewegung der Lichtquelle
-    const lightRadius = 20;
-    const lightHeight = 15;
-    const lightSpeed = 0.0005;
-
-    const directionalLight = this.scene.children.find(
-      (child) => child instanceof PointLight
-    ) as PointLight;
-
-    if (directionalLight) {
-      const time = Date.now() * lightSpeed;
-      directionalLight.position.set(
-        lightRadius * Math.cos(time),
-        lightHeight,
-        lightRadius * Math.sin(time)
-      );
-
-      directionalLight.lookAt(0, 0, 0);
     }
 
     this.renderer.render(this.scene, this.camera);
   }
+
+  ngOnDestroy(): void {
+    cancelAnimationFrame(this.animationFrameId);
+    window.removeEventListener('resize', this.onWindowResize.bind(this));
+  }
 }
+
