@@ -23,7 +23,7 @@ import {
   SphereGeometry,
   PointLight,
   BoxGeometry,
-  PlaneGeometry,
+  PlaneGeometry, MeshPhongMaterial,
 } from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader';
 
@@ -70,7 +70,6 @@ export class HeightmapDemoComponent
       this.onTextureLoaded(texture)
     );
 
-    // Lade auch die Normalmap und erstelle die Wand
     loader.load('assets/normalmap.png', (normalMap: Texture) =>
       this.createWall(normalMap)
     );
@@ -134,8 +133,7 @@ export class HeightmapDemoComponent
     this.addSphere(0, 3, -5, 0x0000ff); // Blau
     this.generateLight();
 
-    // Füge eine Geometrie mit Phong Material hinzu
-    this.addPhongSphere(5, 3, 0, 0x00ff00); // Grünes Phong-Sphere
+    this.addPhongSphere(5, 3, 0, 0x00ff00);
   }
 
   private loadTree() {
@@ -164,18 +162,17 @@ export class HeightmapDemoComponent
   private animateTree(tree: THREE.Group) {
     let angle = 0;
 
-    // Animationsfunktion, die im Renderloop immer wieder aufgerufen wird
     const animate = () => {
-      angle += 0.01; // Geschwindigkeit der Animation anpassen
+      angle += 0.01;
 
-      tree.rotation.y = Math.sin(angle) * 0.5; // Der Baum bewegt sich hin und her
+      tree.rotation.y = Math.sin(angle) * 0.5;
 
-      tree.position.y = 1 + Math.sin(angle * 2) * 0.8; // Heben und Senken des Baums
+      tree.position.y = 1 + Math.sin(angle * 2) * 0.8;
 
       this.animationFrameId = requestAnimationFrame(animate);
     };
 
-    animate(); // Starte die Animation
+    animate();
   }
 
   private createWall(normalMap: Texture) {
@@ -198,19 +195,23 @@ export class HeightmapDemoComponent
 
 
   private addCube(x: number, y: number, z: number, color: number) {
-    const material = new MeshStandardMaterial({color: color});
-    const box = new BoxGeometry(3, 3, 3);
-    const mesh = new Mesh(box, material);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.position.set(x, y, z);
+    const loader = new TextureLoader();
 
-    // Würfelbewegung initialisieren
-    mesh.name = 'MovingCube'; // Name setzen, um ihn später zu finden
-    mesh.userData['direction'] = 1; // 1 für rechts, -1 für links
+    loader.load('assets/goat.jpg', (texture) => {
+      const material = new MeshStandardMaterial({ map: texture });
+      const box = new BoxGeometry(3, 3, 3);
+      const mesh = new Mesh(box, material);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.position.set(x, y, z);
 
-    this.scene.add(mesh);
+      mesh.name = 'MovingCube';
+      mesh.userData['direction'] = 1;
+
+      this.scene.add(mesh);
+    });
   }
+
 
   private addSphere(x: number, y: number, z: number, color: number) {
     const material = new MeshStandardMaterial({color: color});
@@ -223,9 +224,8 @@ export class HeightmapDemoComponent
   }
 
   private addPhongSphere(x: number, y: number, z: number, color: number) {
-    // Geometrie und Phong-Material hinzufügen
     const geometry = new SphereGeometry(3, 32, 32);
-    const material = new MeshStandardMaterial({
+    const material = new MeshPhongMaterial({
       color: color,
     });
 
@@ -320,21 +320,19 @@ export class HeightmapDemoComponent
     // Rotation animieren
     let angle = 0;
     const animateLight = () => {
-      angle += 0.01;  // Geschwindigkeit der Bewegung
+      angle += 0.01;
 
-      // Neue Position des Lichts auf einer Kreisbahn
-      directionalLight2.position.x = 50 * Math.sin(angle); // Kreisbewegung entlang der X-Achse
-      directionalLight2.position.z = 50 * Math.cos(angle); // Kreisbewegung entlang der Z-Achse
-      directionalLight2.position.y = 50 + Math.sin(angle * 0.5) * 10;  // Kleine Variation in der Höhe
+      directionalLight2.position.x = 50 * Math.sin(angle);
+      directionalLight2.position.z = 50 * Math.cos(angle);
+      directionalLight2.position.y = 50 + Math.sin(angle * 0.5) * 10;
 
-      // Das Licht immer auf das Zentrum (z.B. das Terrain) richten
-      directionalLight2.target.position.set(0, 0, 0);  // Ziel des Lichts
-      directionalLight2.target.updateMatrixWorld();  // Zielmatrix aktualisieren
+      directionalLight2.target.position.set(0, 0, 0);
+      directionalLight2.target.updateMatrixWorld();
 
       this.animationFrameId = requestAnimationFrame(animateLight);
     };
 
-    animateLight(); // Startet die Animation des Lichts
+    animateLight();
   }
 
 
@@ -345,14 +343,13 @@ export class HeightmapDemoComponent
 
   private animate() {
     this.animationFrameId = requestAnimationFrame(this.animate.bind(this));
-    // Würfelanimation
     const movingCube = this.scene.getObjectByName('MovingCube');
     if (movingCube) {
       const direction = movingCube.userData['direction'];
       movingCube.position.x += direction * 0.1;
 
       if (movingCube.position.x > 10 || movingCube.position.x < -10) {
-        movingCube.userData['direction'] *= -1; // Richtung umkehren
+        movingCube.userData['direction'] *= -1;
       }
     }
 
